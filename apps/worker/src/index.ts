@@ -11,7 +11,7 @@ await registerAuth(app)
 await registerRoutes(app)
 await ensureSeedAdmin(app)
 
-const port = Number(process.env.PORT ?? 4000)
+const port = Number(process.env.PORT ?? 4400)
 await app.listen({ port, host: '0.0.0.0' })
 
 startScheduler()

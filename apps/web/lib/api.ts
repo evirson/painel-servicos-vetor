@@ -1,6 +1,6 @@
 import { getToken } from './auth'
 
-export const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+export const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4400'
 
 export class ApiError extends Error {
   status: number

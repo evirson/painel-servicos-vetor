@@ -26,9 +26,9 @@ packages/
 docker compose up --build
 ```
 
-- Página pública: http://localhost:3000
-- Admin: http://localhost:3000/admin
-- API: http://localhost:4000
+- Página pública: http://localhost:3300
+- Admin: http://localhost:3300/admin
+- API: http://localhost:4400
 
 > O worker precisa alcançar seus bancos/Firebird/Asta na rede interna. Se esses recursos estiverem
 > no **host** da máquina, descomente `extra_hosts` no `docker-compose.yml` e use
@@ -43,8 +43,8 @@ cp .env.example .env          # ajuste DATABASE_URL
 npm install
 npm run db:push               # cria as tabelas
 npm run db:seed               # (opcional) dados de exemplo
-npm run dev:worker            # API + agendador em :4000
-npm run dev:web               # front em :3000  (outro terminal)
+npm run dev:worker            # API + agendador em :4400
+npm run dev:web               # front em :3300  (outro terminal)
 ```
 
 ## Tipos de serviço monitorável
@@ -86,4 +86,4 @@ cria/atualiza esse admin. Para criar/alterar outro admin manualmente:
 npm --workspace @vetor/worker run create-admin admin@vetor.com.br minhaSenha
 ```
 
-Acesse `http://localhost:3000/login`, entre e você será levado ao `/admin`.
+Acesse `http://localhost:3300/login`, entre e você será levado ao `/admin`.

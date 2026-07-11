@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: vetor
       POSTGRES_DB: painel
     ports:
-      - "5432:5432"
+      - "55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -21,13 +21,13 @@ services:
       dockerfile: apps/worker/Dockerfile
     environment:
       DATABASE_URL: postgresql://vetor:vetor@postgres:5432/painel
-      PORT: 4000
+      PORT: 4400
       AUTH_SECRET: troque-este-segredo-em-producao
       # Admin inicial criado/atualizado no boot:
       ADMIN_EMAIL: admin@vetor.com.br
       ADMIN_PASSWORD: troque-esta-senha
     ports:
-      - "4000:4000"
+      - "4400:4400"
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,9 +42,9 @@ services:
       dockerfile: apps/web/Dockerfile
     environment:
       # URL que o NAVEGADOR usa para alcançar o worker (porta publicada no host).
-      NEXT_PUBLIC_API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: http://localhost:4400
     ports:
-      - "3000:3000"
+      - "3300:3300"
     depends_on:
       - worker
 

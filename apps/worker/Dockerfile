@@ -9,7 +9,7 @@ COPY . .
 RUN npm install
 RUN npx prisma generate --schema packages/db/prisma/schema.prisma
 
-EXPOSE 4000
+EXPOSE 4400
 
 # Sincroniza o schema no banco e sobe a API + agendador.
 CMD ["sh", "-c", "npx prisma db push --schema packages/db/prisma/schema.prisma --skip-generate && npm --workspace @vetor/worker run start"]
