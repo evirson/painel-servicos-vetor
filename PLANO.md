@@ -123,30 +123,52 @@ e manter o detalhado por ~90 dias.
 
 ---
 
-## 7. Roadmap sugerido
+## 7. Roadmap e progresso
 
-**Fase 1 — Esqueleto**
-- Monorepo, docker-compose (postgres + redis), Prisma schema, Fastify + Next.js subindo.
+> Decisão de implementação: o agendamento ficou **em processo** (um timer por alvo no worker),
+> não com Redis/BullMQ — menos um container. Trocar por BullMQ é isolado em `scheduler.ts`.
 
-**Fase 2 — Sondas base**
-- `tcp` (cobre db_port, firebird, asta) e `http_api`. Scheduler rodando e gravando `Check`.
+**Fase 1 — Esqueleto** ✅ feito
+- Monorepo (npm workspaces), docker-compose (postgres + worker + web), Prisma schema, Fastify +
+  Next.js subindo.
 
-**Fase 3 — Admin**
-- CRUD de alvos/grupos, "checar agora", visualização de histórico.
+**Fase 2 — Sondas base** ✅ feito
+- `tcp` (cobre db_port, firebird, asta) e `http_api`. Agendador rodando e gravando `Check`,
+  abrindo/fechando `Incident` na transição de/para `down`.
 
-**Fase 4 — Página pública**
-- Grupos, semáforos, uptime %, histórico 90 dias, marca Vetor.
+**Fase 3 — Admin** ✅ parcial
+- CRUD de alvos/grupos e "checar agora" prontos. **Falta:** tela de histórico/estatísticas por
+  serviço (a API `/stats` e `/checks` já existem).
 
-**Fase 5 — Fiscal**
-- Sonda `sefaz` (NfeStatusServico por UF) + agregação de incidentes.
+**Fase 4 — Página pública** ✅ feito
+- Grupos, semáforos, uptime % e histórico de 90 dias. **Falta:** aplicar a marca da Vetor.
 
-**Fase 6 — Refino**
+**Fase 5 — Fiscal** ✅ parcial
+- Sonda `sefaz` real: envelope SOAP `NfeStatusServico4`, envio via `node:https` (suporta A1/mTLS),
+  leitura do `cStat` (107=up, 108/109=down). **Falta:** validar contra UFs reais e definir cert.
+
+**Fase 6 — Refino** ⬜ pendente
 - Alertas (e-mail/Telegram/webhook), retenção/agregação de métricas, heartbeat Asta→Firebird.
+
+**Segurança — Autenticação** ✅ feito
+- Login e-mail/senha (bcrypt) + JWT; rotas `/api` protegidas exceto `/api/public/*`,
+  `/api/auth/login` e `/health`. Admin inicial via `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
 
 ---
 
-## 8. Pontos em aberto para confirmar depois
+## 8. Estado atual (2026-07-11)
+
+- Branch **`feat/esqueleto-painel-auth`** (pushed em `origin`). PR ainda **não aberto**.
+- Portas (mudadas para evitar conflito com outro projeto local): **web 3300**, **API 4400**,
+  **Postgres host 55432** (interno do container permanece 5432).
+- Rodar: `docker compose up --build` → público em `:3300`, admin em `:3300/admin`, API em `:4400`.
+  O `.dockerignore` é **essencial** (sem ele, o `node_modules` arm64 do macOS quebra o build Linux).
+- Banco vem vazio numa subida limpa (compose roda só `db push`); popular exemplos com
+  `docker compose exec worker npm run db:seed`.
+
+## 9. Pontos em aberto para confirmar depois
 - Portas reais do Asta e do Firebird no ambiente da Vetor.
-- Quais UFs entram no monitoramento SEFAZ.
-- Se a consulta de status da SEFAZ exigirá certificado digital.
+- Quais UFs entram no monitoramento SEFAZ e URLs dos web services por autorizador.
+- Se a consulta de status da SEFAZ exigirá certificado digital A1 (mTLS).
 - Onde exatamente será implantado (on-premise vs cloud) — define a estratégia de rede/VPN.
+- Autenticação: hoje sem rate-limiting nem refresh token; avaliar antes de expor fora da rede.
