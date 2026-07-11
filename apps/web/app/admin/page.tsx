@@ -63,6 +63,11 @@ export default function Admin() {
       if (body.porta) body.porta = Number(body.porta)
       body.intervaloSegundos = Number(body.intervaloSegundos)
       body.timeoutMs = Number(body.timeoutMs)
+      if (body.tipo === 'sefaz') {
+        body.config = { uf: (body.uf || '').toUpperCase(), ambiente: body.ambiente || 'producao' }
+      }
+      delete body.uf
+      delete body.ambiente
       await api('/api/targets', { method: 'POST', body: JSON.stringify(body) })
       setForm(emptyForm())
       setMsg('Serviço adicionado.')
@@ -139,8 +144,25 @@ export default function Admin() {
         {isHttp && (
           <label className="text-sm sm:col-span-2">URL
             <input className="mt-1 w-full border rounded px-2 py-1" value={form.url || ''}
-              onChange={(e) => setForm({ ...form, url: e.target.value })} placeholder="https://…" />
+              onChange={(e) => setForm({ ...form, url: e.target.value })}
+              placeholder={form.tipo === 'sefaz' ? 'https://…/ws/nfestatusservico4.asmx' : 'https://…'} />
           </label>
+        )}
+
+        {form.tipo === 'sefaz' && (
+          <>
+            <label className="text-sm">UF
+              <input maxLength={2} className="mt-1 w-full border rounded px-2 py-1 uppercase" value={form.uf || ''}
+                onChange={(e) => setForm({ ...form, uf: e.target.value.toUpperCase() })} placeholder="SP" />
+            </label>
+            <label className="text-sm">Ambiente
+              <select className="mt-1 w-full border rounded px-2 py-1" value={form.ambiente || 'producao'}
+                onChange={(e) => setForm({ ...form, ambiente: e.target.value })}>
+                <option value="producao">Produção</option>
+                <option value="homologacao">Homologação</option>
+              </select>
+            </label>
+          </>
         )}
 
         <label className="text-sm">Grupo
