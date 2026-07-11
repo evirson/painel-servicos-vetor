@@ -1,0 +1,20 @@
+{
+  "name": "painel-servicos-vetor",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:worker": "npm --workspace @vetor/worker run dev",
+    "dev:web": "npm --workspace @vetor/web run dev",
+    "db:generate": "npm --workspace @vetor/db run generate",
+    "db:push": "npm --workspace @vetor/db run push",
+    "db:seed": "npm --workspace @vetor/db run seed"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}

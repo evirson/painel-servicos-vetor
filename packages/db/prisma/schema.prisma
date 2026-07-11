@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProbeType {
+  http_api
+  db_port
+  firebird
+  asta
+  sefaz
+}
+
+enum CheckStatus {
+  up
+  down
+  degraded
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  senhaHash String
+  papel     String   @default("admin")
+  createdAt DateTime @default(now())
+}
+
+model StatusGroup {
+  id        String   @id @default(cuid())
+  nome      String
+  ordem     Int      @default(0)
+  targets   Target[]
+  createdAt DateTime @default(now())
+}
+
+model Target {
+  id                String       @id @default(cuid())
+  nome              String
+  tipo              ProbeType
+  host              String?
+  porta             Int?
+  url               String?
+  config            Json?
+  intervaloSegundos Int          @default(60)
+  timeoutMs         Int          @default(5000)
+  ativo             Boolean      @default(true)
+  publico           Boolean      @default(true)
+  statusGroup       StatusGroup? @relation(fields: [statusGroupId], references: [id], onDelete: SetNull)
+  statusGroupId     String?
+  lastStatus        CheckStatus?
+  lastCheckedAt     DateTime?
+  checks            Check[]
+  incidents         Incident[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model Check {
+  id         String      @id @default(cuid())
+  target     Target      @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  targetId   String
+  timestamp  DateTime    @default(now())
+  status     CheckStatus
+  latenciaMs Int?
+  mensagem   String?
+
+  @@index([targetId, timestamp])
+}
+
+model Incident {
+  id       String    @id @default(cuid())
+  target   Target    @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  targetId String
+  inicio   DateTime  @default(now())
+  fim      DateTime?
+  resumo   String?
+
+  @@index([targetId, inicio])
+}

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "types": ["node"],
+    "paths": {
+      "@vetor/db": ["../../packages/db/src/index.ts"],
+      "@vetor/probes": ["../../packages/probes/src/index.ts"]
+    }
+  },
+  "include": ["src"]
+}
