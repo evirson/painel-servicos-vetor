@@ -26,6 +26,12 @@ services:
       # Admin inicial criado/atualizado no boot:
       ADMIN_EMAIL: admin@vetor.com.br
       ADMIN_PASSWORD: troque-esta-senha
+      # Certificado A1 para a sonda SEFAZ (PR exige mTLS até no status serviço).
+      # Monte o .pfx pelo volume abaixo e descomente:
+      # NFE_CERT_PFX_PATH: /certs/vetor.pfx
+      # NFE_CERT_PASS: senha-do-pfx
+    # volumes:
+    #   - ./certs:/certs:ro
     ports:
       - "4400:4400"
     depends_on:

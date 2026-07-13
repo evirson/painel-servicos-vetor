@@ -146,7 +146,14 @@ e manter o detalhado por ~90 dias.
 
 **Fase 5 — Fiscal** ✅ parcial
 - Sonda `sefaz` real: envelope SOAP `NfeStatusServico4`, envio via `node:https` (suporta A1/mTLS),
-  leitura do `cStat` (107=up, 108/109=down). **Falta:** validar contra UFs reais e definir cert.
+  leitura do `cStat` (107=up, 108/109=down).
+- **UF definida: PR** (principal base de clientes). Endpoint validado até o handshake TLS:
+  `https://nfe.sefa.pr.gov.br/nfe/NFeStatusServico4` — a SEFA-PR **exige certificado A1 (mTLS)**
+  até para o status serviço (alerta TLS 42 sem cert; alerta 46 com cert fora da ICP-Brasil).
+  Erro de certificado vira `degraded` com mensagem explicativa (não `down`), para não abrir
+  incidente falso na página pública. **Falta:** montar o A1 real da Vetor no worker
+  (`NFE_CERT_PFX_PATH`/`NFE_CERT_PASS` ou volume `./certs` — ver docker-compose.yml) e
+  confirmar o `cStat 107` de ponta a ponta.
 
 **Fase 6 — Refino** ⬜ pendente
 - Alertas (e-mail/Telegram/webhook), retenção/agregação de métricas, heartbeat Asta→Firebird.
@@ -169,7 +176,9 @@ e manter o detalhado por ~90 dias.
 
 ## 9. Pontos em aberto para confirmar depois
 - Portas reais do Asta e do Firebird no ambiente da Vetor.
-- Quais UFs entram no monitoramento SEFAZ e URLs dos web services por autorizador.
-- Se a consulta de status da SEFAZ exigirá certificado digital A1 (mTLS).
+- ~~Quais UFs entram no monitoramento SEFAZ~~ → **PR** (2026-07-13); outras UFs conforme a base
+  de clientes crescer.
+- ~~Se a consulta de status da SEFAZ exigirá certificado~~ → **PR exige A1/mTLS** (confirmado
+  2026-07-13); falta obter o .pfx da Vetor e a senha para montar no worker.
 - Onde exatamente será implantado (on-premise vs cloud) — define a estratégia de rede/VPN.
 - Autenticação: hoje sem rate-limiting nem refresh token; avaliar antes de expor fora da rede.

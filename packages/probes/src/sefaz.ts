@@ -136,6 +136,20 @@ export async function sefazProbe(t: ProbeTarget): Promise<ProbeResult> {
     if (cStat === '108' || cStat === '109') return { status: 'down', latenciaMs, mensagem: msg }
     return { status: 'degraded', latenciaMs, mensagem: msg }
   } catch (err: any) {
-    return { status: 'down', mensagem: String(err?.message ?? err) }
+    const raw = String(err?.message ?? err)
+    // Handshake TLS recusado por certificado de cliente (alert 42 "bad certificate",
+    // alert 46 "certificate unknown", alert 116 "certificate required"): problema de
+    // configuração nossa, não queda da SEFAZ — reporta degraded para não abrir
+    // incidente falso na página pública.
+    if (/bad certificate|certificate unknown|certificate required|handshake failure/i.test(raw)) {
+      const temCert = Boolean(cfg.certPath || process.env.NFE_CERT_PFX_PATH)
+      return {
+        status: 'degraded',
+        mensagem: temCert
+          ? `web service recusou o certificado configurado (mTLS): ${raw}`
+          : 'a UF exige certificado digital A1 (mTLS) e nenhum está configurado — defina config.certPath ou NFE_CERT_PFX_PATH',
+      }
+    }
+    return { status: 'down', mensagem: raw }
   }
 }

@@ -7,12 +7,12 @@ async function main() {
 
   await prisma.target.create({
     data: {
-      nome: 'SEFAZ NFe (SP) — status serviço',
+      nome: 'SEFAZ NFe (PR) — status serviço',
       tipo: 'sefaz',
-      url: 'https://nfe.fazenda.sp.gov.br/ws/nfestatusservico4.asmx',
-      config: { uf: 'SP', ambiente: 'producao' },
+      url: 'https://nfe.sefa.pr.gov.br/nfe/NFeStatusServico4',
+      config: { uf: 'PR', ambiente: 'producao' },
       intervaloSegundos: 300,
-      timeoutMs: 8000,
+      timeoutMs: 15000,
       statusGroupId: fiscal.id,
     },
   })

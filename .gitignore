@@ -5,5 +5,9 @@ build/
 *.tsbuildinfo
 .env
 .env.local
+# certificados digitais nunca entram no repo
+certs/
+*.pfx
+*.p12
 *.log
 .DS_Store
