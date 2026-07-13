@@ -201,7 +201,7 @@ export default function Admin() {
                   t.lastStatus === 'up' ? 'bg-emerald-500'
                   : t.lastStatus === 'degraded' ? 'bg-amber-500'
                   : t.lastStatus === 'down' ? 'bg-rose-500' : 'bg-slate-300'}`} />
-                {t.nome}
+                <a href={`/admin/targets/${t.id}`} className="hover:underline">{t.nome}</a>
                 <span className="text-xs text-slate-400">{t.tipo}</span>
               </div>
               <div className="text-xs text-slate-500 mt-1 truncate">
@@ -209,6 +209,7 @@ export default function Admin() {
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
+              <a href={`/admin/targets/${t.id}`} className="text-sm border rounded px-3 py-1">Histórico</a>
               <button onClick={() => checkNow(t.id)} className="text-sm border rounded px-3 py-1">Checar agora</button>
               <button onClick={() => remove(t.id)} className="text-sm text-rose-600 border border-rose-200 rounded px-3 py-1">Remover</button>
             </div>

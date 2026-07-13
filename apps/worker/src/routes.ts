@@ -19,6 +19,11 @@ function pickTarget(body: any, partial = false) {
   return data
 }
 
+// limit de query string: NaN/0/negativo caem no default, teto de 500
+function parseLimit(q: any, def = 50) {
+  return Math.min(Math.max(Number(q.limit) || def, 1), 500)
+}
+
 function computeStats(checks: { status: string; latenciaMs: number | null }[]) {
   const total = checks.length
   const up = checks.filter((c) => c.status === 'up').length
@@ -113,7 +118,7 @@ export async function registerRoutes(app: FastifyInstance) {
   // Histórico de checagens
   app.get('/api/targets/:id/checks', async (req) => {
     const { id } = req.params as any
-    const limit = Math.min(Number((req.query as any).limit ?? 50), 500)
+    const limit = parseLimit(req.query)
     return prisma.check.findMany({
       where: { targetId: id },
       orderBy: { timestamp: 'desc' },
@@ -121,10 +126,21 @@ export async function registerRoutes(app: FastifyInstance) {
     })
   })
 
+  // Incidentes por alvo
+  app.get('/api/targets/:id/incidents', async (req) => {
+    const { id } = req.params as any
+    const limit = parseLimit(req.query)
+    return prisma.incident.findMany({
+      where: { targetId: id },
+      orderBy: { inicio: 'desc' },
+      take: limit,
+    })
+  })
+
   // Estatísticas (para a equipe)
   app.get('/api/targets/:id/stats', async (req) => {
     const { id } = req.params as any
-    const hours = Number((req.query as any).hours ?? 24)
+    const hours = Math.max(Number((req.query as any).hours) || 24, 1)
     const since = new Date(Date.now() - hours * 3600_000)
     const checks = await prisma.check.findMany({ where: { targetId: id, timestamp: { gte: since } } })
     return computeStats(checks)

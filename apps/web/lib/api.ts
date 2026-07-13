@@ -15,7 +15,8 @@ export async function api(path: string, init?: RequestInit) {
   const res = await fetch(`${API}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      // Content-Type só quando há corpo: POST vazio com application/json é rejeitado pelo Fastify (400)
+      ...(init?.body ? { 'Content-Type': 'application/json' } : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers || {}),
     },

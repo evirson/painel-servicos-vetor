@@ -136,9 +136,10 @@ e manter o detalhado por ~90 dias.
 - `tcp` (cobre db_port, firebird, asta) e `http_api`. Agendador rodando e gravando `Check`,
   abrindo/fechando `Incident` na transição de/para `down`.
 
-**Fase 3 — Admin** ✅ parcial
-- CRUD de alvos/grupos e "checar agora" prontos. **Falta:** tela de histórico/estatísticas por
-  serviço (a API `/stats` e `/checks` já existem).
+**Fase 3 — Admin** ✅ feito
+- CRUD de alvos/grupos, "checar agora" e tela de histórico/estatísticas por serviço
+  (`/admin/targets/[id]`: uptime/latência por período 24h/7d/30d, incidentes e checagens;
+  API `/incidents` adicionada ao lado de `/stats` e `/checks`).
 
 **Fase 4 — Página pública** ✅ feito
 - Grupos, semáforos, uptime % e histórico de 90 dias. **Falta:** aplicar a marca da Vetor.
