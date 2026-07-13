@@ -6,6 +6,8 @@ status dos web services fiscais da **SEFAZ**. Tem duas faces:
 
 - **Página pública** (`/`) — para o cliente ver a disponibilidade dos serviços.
 - **Painel admin** (`/admin`) — para a equipe cadastrar serviços, checar na hora e ver estatísticas.
+  Cada serviço tem uma tela de histórico (`/admin/targets/[id]`) com uptime e latência por
+  período (24h/7d/30d), incidentes e as últimas checagens.
 
 Veja o desenho completo em [`PLANO.md`](./PLANO.md).
 
@@ -67,12 +69,29 @@ npm run dev:web               # front em :3300  (outro terminal)
 
 - **Agendamento:** feito em processo (um timer por alvo, ressincronizado a cada 30s). Para múltiplos
   workers/filas distribuídas no futuro, troque `apps/worker/src/scheduler.ts` por BullMQ + Redis.
-- **Estatísticas:** `GET /api/targets/:id/stats?hours=24` retorna uptime % e latência média.
+- **Estatísticas:** `GET /api/targets/:id/stats?hours=24` retorna uptime % e latência média;
+  `GET /api/targets/:id/checks` e `GET /api/targets/:id/incidents` retornam o histórico
+  (parâmetro `limit`, máx. 500).
 - **SEFAZ:** monta o envelope SOAP do `NfeStatusServico4`, envia e lê o `cStat` (107 = em operação
   → `up`; 108/109 → `down`; demais → `degraded`). Config do alvo: `uf`, `ambiente`
   (`producao`/`homologacao`) e a `url` do web service da UF. Se a UF exigir certificado A1 (mTLS),
   informe `certPath`/`certPassphrase` no `config` do alvo ou as envs `NFE_CERT_PFX_PATH` /
   `NFE_CERT_PASS`. Para autorizadores que usam SOAP 1.1, defina `config.soapVersion = "1.1"`.
+  Sem certificado válido a sonda reporta `degraded` com mensagem explicativa (não `down`):
+  falha de certificado é problema de configuração nosso, não queda da SEFAZ.
+
+## SEFAZ Paraná (base de clientes atual)
+
+A autorizadora do PR é a SEFA-PR e **exige certificado A1 (mTLS) até para o status serviço**.
+
+- Endpoint de produção: `https://nfe.sefa.pr.gov.br/nfe/NFeStatusServico4` (config: `uf: "PR"`,
+  `ambiente: "producao"`) — já vem no seed.
+- Para ativar de verdade, monte o certificado no worker:
+  1. Crie a pasta `certs/` na raiz e coloque o `.pfx` nela (a pasta é ignorada pelo git).
+  2. No `docker-compose.yml`, descomente o volume `./certs:/certs:ro` e as envs
+     `NFE_CERT_PFX_PATH` / `NFE_CERT_PASS` do serviço `worker`.
+  3. `docker compose up -d worker` e use "Checar agora" no admin — deve retornar
+     `cStat 107 - Serviço em Operação`.
 - **Autenticação do admin:** login por e-mail/senha (bcrypt) com JWT. Todas as rotas `/api` exigem
   token, exceto `/api/public/*`, `/api/auth/login` e `/health`. Defina `AUTH_SECRET` em produção.
   O front guarda o token no `localStorage` e envia via `Authorization: Bearer`.
