@@ -156,9 +156,9 @@ e manter o detalhado por ~90 dias.
 
 ---
 
-## 8. Estado atual (2026-07-11)
+## 8. Estado atual (2026-07-13)
 
-- Branch **`feat/esqueleto-painel-auth`** (pushed em `origin`). PR ainda **não aberto**.
+- Tudo mergeado na **`main`**; branch `feat/esqueleto-painel-auth` apagada. Trabalho segue direto na main.
 - Portas (mudadas para evitar conflito com outro projeto local): **web 3300**, **API 4400**,
   **Postgres host 55432** (interno do container permanece 5432).
 - Rodar: `docker compose up --build` → público em `:3300`, admin em `:3300/admin`, API em `:4400`.
