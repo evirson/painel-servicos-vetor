@@ -183,43 +183,76 @@ e manter o detalhado por ~90 dias.
   socket, sem CLI) e portas locais. Cada item vira um `Target` auto-provisionado com
   `publico: false`. Inclui **watchdog**: alvo push sem relato há mais de 3× o intervalo vira
   `down`, senão um agente morto deixaria tudo verde para sempre.
-- **Pendente:** Fase D (alertas) e rate limiting no login — ver a seção 9.
+- **Pendente:** Fase D (alertas) e a implantação real no VPS — ver a seção 9.
 
 **Segurança — Autenticação** ✅ feito
 - Login e-mail/senha (bcrypt) + JWT; rotas `/api` protegidas exceto `/api/public/*`,
-  `/api/auth/login` e `/health`. Admin inicial via `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
+  `/api/auth/login`, `/api/ingest/*` (token próprio do agente) e `/health`.
+- **Rate limiting** (`apps/worker/src/rate-limit.ts`): 5 falhas em 15 min bloqueiam por 15 min,
+  contando por IP **e** por e-mail (só por IP, ataque distribuído passa; só por e-mail, qualquer
+  um tranca a conta do admin de fora). Usa `X-Forwarded-For` para funcionar atrás do nginx.
+  Contadores em memória — reiniciar o worker os zera.
 
 ---
 
-## 8. Estado atual (2026-07-13)
+## 8. Estado atual (2026-07-23)
 
-- Tudo mergeado na **`main`**; branch `feat/esqueleto-painel-auth` apagada. Trabalho segue direto na main.
-- Portas (mudadas para evitar conflito com outro projeto local): **web 3300**, **API 4400**,
-  **Postgres host 55432** (interno do container permanece 5432).
-- Rodar: `docker compose up --build` → público em `:3300`, admin em `:3300/admin`, API em `:4400`.
-  O `.dockerignore` é **essencial** (sem ele, o `node_modules` arm64 do macOS quebra o build Linux).
-- Banco vem vazio numa subida limpa (compose roda só `db push`); popular exemplos com
-  `docker compose exec worker npm run db:seed`.
+- Tudo na **`main`**. Rodando local via `docker compose up --build`:
+  público em `:3300`, admin em `:3300/admin`, API em `:4400`, Postgres host `55432`.
+- O `.dockerignore` é **essencial** (sem ele, o `node_modules` arm64 do macOS quebra o build Linux).
+- Banco vem vazio numa subida limpa; `docker compose exec worker npm run db:seed` cria o grupo
+  Infraestrutura (ping + TCP 22/80/443 no VPS) e o alvo da SEFAZ.
+- `SECRETS_KEY` é obrigatória para o cofre de credenciais funcionar (senão as rotas dão 503).
+  Está no `.env` local, que é gitignored. **Se ela se perder, os segredos gravados são perdidos.**
 
-## 9. Próximos passos do monitoramento do VPS (77.37.41.177)
+## 9. Próximo passo: implantar no VPS (retomar aqui)
 
-Ordem acordada: **A → C → B → D**. A Fase A está feita.
+**Decisão de 2026-07-23:** hospedar o painel **no próprio 77.37.41.177**, atrás do nginx que já
+existe, num subdomínio — como solução **temporária** para validar tudo funcionando, migrando para
+fora depois.
 
-- ~~**C — Escala**~~ ✅ feita (ver Fase 7 acima).
-- ~~**B — Agente no VPS**~~ ✅ feito (ver Fase 7 acima e `apps/agent/README.md`).
-  **Falta implantar de verdade no 77.37.41.177** — o código está testado contra 30 containers
-  reais, mas rodando localmente.
-- **D — Alertas** com flap damping + dead-man's-switch externo para o próprio painel.
+> ⚠️ Enquanto morar nesse VPS, o painel **não detecta a queda do próprio VPS**: cai junto e a
+> página pública fica muda justamente quando o cliente vai consultá-la. É um débito aceito
+> conscientemente, não um esquecimento.
 
-> ⚠️ **Rate limiting no login virou obrigatório**, não opcional: com o cofre de credenciais, o
-> painel passa a guardar senha de produção. Fazer antes de expor o admin fora da rede.
+**Bloqueado aguardando (perguntado em 2026-07-23, sem resposta ainda):**
+1. Qual subdomínio (ex.: `status.vetor.com.br`) e se o DNS já aponta para 77.37.41.177.
+2. Como o nginx roda no VPS (container ou host) e como os certificados são emitidos (certbot?).
+3. Usuário SSH (precisa estar no grupo `docker`).
+4. Instalar a chave pública: `ssh-copy-id -i ~/.ssh/painel_vetor_vps.pub <user>@77.37.41.177`
+   (par gerado em 2026-07-23; a privada fica em `~/.ssh/painel_vetor_vps`).
+
+**Plano do deploy** — mexer só no que for novo, sem tocar nos projetos existentes:
+- `git clone` numa pasta nova + `docker compose up` com portas altas ligadas só em `127.0.0.1`.
+- **Novo** server block no nginx para o subdomínio, com certificado.
+- Agente como mais um container (ver `apps/agent/README.md`), com `PORTAS` apontando para os
+  bancos internos e `MOUNTS=/hostfs`.
+- Gerar **no servidor** segredos novos: `SECRETS_KEY`, `AUTH_SECRET` e uma senha de admin real —
+  `troque-esta-senha` não pode ir para a internet.
+- O cofre local **não se transfere** (a `SECRETS_KEY` de lá é outra): recadastrar as credenciais
+  pelo admin depois de subir.
+
+**Depois disso:** Fase D — alertas (e-mail/Telegram) com flap damping, mais um
+dead-man's-switch externo para avisar se o próprio painel morrer.
 
 > ⚠️ **`ping` não funciona sob Docker Desktop (macOS/Windows)**: a pilha de rede em espaço de
 > usuário responde ao ICMP em vez de encaminhá-lo, e qualquer IP "responde". A sonda detecta
 > isso pingando 192.0.2.1 (TEST-NET, RFC 5737) e reporta `degraded` com o motivo, em vez de um
 > falso `up`. Em host Linux (produção) funciona normalmente.
 
-## 10. Pontos em aberto para confirmar depois
+## 10. Pendências que não são de código
+
+- **Certificado A1 da SEFAZ (PR).** O arquivo em `~/Documents/projetos/CERTIFICADO EC 15.04.205 -
+  SENHA Shaft212536.pfx` **não abre com a senha que está no próprio nome** — testado com OpenSSL 3
+  e com o Node (`mac verify failure`), em ~12 variações. O PKCS#12 é íntegro; a senha é que está
+  errada. A data no nome sugere validade vencida (2025/2026). Precisa do arquivo/senha corretos.
+- **Arquivo com os dados do VPS** (mencionado em 2026-07-23) não foi localizado: só existe
+  `~/Documents/projetos/message.txt`, que é a documentação da API de bloqueio de grupo do
+  `ws_vetor-gestor` (porta 9096) — não tem nada do VPS. Busca por `77.37.41.177` na pasta
+  `projetos` inteira não retornou nada.
+- **Marca da Vetor** na página pública (único item que falta da Fase 4).
+
+## 11. Pontos em aberto para confirmar depois
 - Portas reais do Asta e do Firebird no ambiente da Vetor.
 - ~~Quais UFs entram no monitoramento SEFAZ~~ → **PR** (2026-07-13); outras UFs conforme a base
   de clientes crescer.
