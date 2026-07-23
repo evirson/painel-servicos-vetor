@@ -2,15 +2,18 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: vetor
-      POSTGRES_PASSWORD: vetor
-      POSTGRES_DB: painel
+      POSTGRES_USER: ${POSTGRES_USER:-vetor}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vetor}
+      POSTGRES_DB: ${POSTGRES_DB:-painel}
     ports:
       - "55432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U vetor -d painel"]
+      # Precisa acompanhar as variáveis acima: com usuário/banco fixos aqui, uma
+      # instalação que troque as credenciais nunca ficaria "healthy" e o worker
+      # esperaria para sempre (depends_on: service_healthy).
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vetor} -d ${POSTGRES_DB:-painel}"]
       interval: 5s
       timeout: 5s
       retries: 12
@@ -20,7 +23,7 @@ services:
       context: .
       dockerfile: apps/worker/Dockerfile
     environment:
-      DATABASE_URL: postgresql://vetor:vetor@postgres:5432/painel
+      DATABASE_URL: postgresql://${POSTGRES_USER:-vetor}:${POSTGRES_PASSWORD:-vetor}@postgres:5432/${POSTGRES_DB:-painel}
       PORT: 4400
       AUTH_SECRET: troque-este-segredo-em-producao
       # Cofre de credenciais. Gere com `openssl rand -base64 32` e ponha no .env

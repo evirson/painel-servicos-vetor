@@ -1,0 +1,50 @@
+# Sobreposição de PRODUÇÃO — usar junto com o docker-compose.yml:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Diferenças em relação ao ambiente local:
+#  - front em `next build` + `next start`, não `next dev`;
+#  - portas publicadas SÓ em 127.0.0.1: quem fala com a internet é o nginx do
+#    host. Sem isso, o painel ficaria acessível por http://IP:3300 direto,
+#    contornando o nginx, o TLS e o log de acesso;
+#  - Postgres não publica porta nenhuma;
+#  - restart automático;
+#  - segredos vêm do .env (nenhum valor padrão inseguro sobrevive aqui).
+services:
+  postgres:
+    ports: !override []
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?defina POSTGRES_USER no .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
+      POSTGRES_DB: ${POSTGRES_DB:-painel}
+    restart: unless-stopped
+
+  worker:
+    ports: !override
+      - "127.0.0.1:4400:4400"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-painel}
+      PORT: 4400
+      AUTH_SECRET: ${AUTH_SECRET:?defina AUTH_SECRET no .env}
+      SECRETS_KEY: ${SECRETS_KEY:?defina SECRETS_KEY no .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?defina ADMIN_EMAIL no .env}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?defina ADMIN_PASSWORD no .env}
+      NFE_CERT_PFX_PATH: ${NFE_CERT_PFX_PATH:-}
+      NFE_CERT_PASS: ${NFE_CERT_PASS:-}
+    restart: unless-stopped
+
+  web:
+    build:
+      dockerfile: apps/web/Dockerfile.prod
+      args:
+        # Mesma origem do painel: o nginx roteia /api para o worker, então o
+        # navegador não precisa falar com outra porta nem lidar com CORS.
+        NEXT_PUBLIC_API_URL: ${PAINEL_URL:?defina PAINEL_URL no .env}
+    environment:
+      # O valor que vale para o navegador é o do build arg acima (o Next injeta
+      # NEXT_PUBLIC_* no bundle). Repetimos aqui só para o runtime não carregar
+      # o `http://localhost:4400` herdado do compose de desenvolvimento.
+      NEXT_PUBLIC_API_URL: ${PAINEL_URL}
+    ports: !override
+      - "127.0.0.1:3300:3300"
+    restart: unless-stopped

@@ -1,0 +1,34 @@
+# Imagem de PRODUÇÃO do front.
+#
+# O Dockerfile padrão roda `next dev`, que não deve ficar exposto na internet:
+# é lento, recompila a cada requisição e devolve stack traces detalhados.
+# Aqui fazemos `next build` + `next start`.
+#
+# NEXT_PUBLIC_API_URL precisa existir em tempo de BUILD: o Next injeta as
+# variáveis NEXT_PUBLIC_* no bundle que roda no navegador. Passar só em runtime
+# não funciona.
+#
+#   docker build -f apps/web/Dockerfile.prod \
+#     --build-arg NEXT_PUBLIC_API_URL=https://status.vetorsistemas.com.br .
+FROM node:20-slim
+WORKDIR /app
+
+ARG NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_TELEMETRY_DISABLED=1
+
+COPY . .
+
+# ATENÇÃO: NODE_ENV=production NÃO pode estar definido aqui — com ele o npm pula
+# as devDependencies, e tailwindcss/postcss/autoprefixer estão lá. O build
+# quebraria com "Cannot find module 'tailwindcss'" ao processar globals.css.
+# `npm ci` exigiria o lockfile sincronizado; mantemos install para casar com o
+# Dockerfile de dev e evitar divergência de resolução entre as duas imagens.
+RUN npm install
+RUN npm --workspace @vetor/web run build
+
+# Só agora, para o processo em execução: o build já terminou.
+ENV NODE_ENV=production
+
+EXPOSE 3300
+CMD ["npm", "--workspace", "@vetor/web", "run", "start"]

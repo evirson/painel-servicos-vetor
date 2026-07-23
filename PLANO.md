@@ -222,8 +222,22 @@ fora depois.
 4. Instalar a chave pública: `ssh-copy-id -i ~/.ssh/painel_vetor_vps.pub <user>@77.37.41.177`
    (par gerado em 2026-07-23; a privada fica em `~/.ssh/painel_vetor_vps`).
 
+**Domínio definido:** `status.vetorsistemas.com.br` (DNS ainda não criado em 2026-07-23).
+O domínio raiz está atrás da **Cloudflare** (`172.67.168.121`, `104.21.46.119`) — o registro do
+status seguirá o mesmo padrão dos demais sites do VPS, a confirmar com acesso SSH.
+
+**Prontos e testados** (2026-07-23):
+- `apps/web/Dockerfile.prod` — `next build` + `next start`. O Dockerfile padrão roda `next dev`,
+  que não deve ficar exposto. `NEXT_PUBLIC_API_URL` entra como **build arg** (o Next injeta as
+  `NEXT_PUBLIC_*` no bundle do navegador; passar só em runtime não funciona).
+  ⚠️ `NODE_ENV=production` não pode vir antes do `npm install`: o npm pularia as devDependencies
+  e o build quebra em `Cannot find module 'tailwindcss'`.
+- `docker-compose.prod.yml` — portas só em `127.0.0.1` (quem fala com a internet é o nginx),
+  Postgres sem porta publicada, `restart: unless-stopped`, segredos obrigatórios via `.env`.
+
 **Plano do deploy** — mexer só no que for novo, sem tocar nos projetos existentes:
-- `git clone` numa pasta nova + `docker compose up` com portas altas ligadas só em `127.0.0.1`.
+- `git clone` numa pasta nova + `docker compose -f docker-compose.yml -f docker-compose.prod.yml
+  up -d --build`.
 - **Novo** server block no nginx para o subdomínio, com certificado.
 - Agente como mais um container (ver `apps/agent/README.md`), com `PORTAS` apontando para os
   bancos internos e `MOUNTS=/hostfs`.
