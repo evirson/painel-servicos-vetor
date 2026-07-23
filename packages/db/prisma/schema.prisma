@@ -15,6 +15,10 @@ enum ProbeType {
   sefaz
   ping
   tls_cert
+  // Tipos alimentados por PUSH (agente no servidor), não pelo agendador.
+  // O worker nunca os executa; quem grava é POST /api/ingest/agent.
+  host_metric
+  docker_container
 }
 
 enum CredencialTipo {
@@ -68,6 +72,22 @@ model Projeto {
   updatedAt     DateTime     @updatedAt
 }
 
+/// Servidor que roda um agente reportando métricas de dentro (docker, disco, CPU).
+/// Necessário porque as portas internas (bancos) ficam fechadas para a internet:
+/// de fora, container e banco são invisíveis.
+model Host {
+  id         String    @id @default(cuid())
+  nome       String
+  ip         String?
+  /// Hash bcrypt do token do agente — o token em claro só existe no agente.
+  tokenHash  String
+  lastSeenAt DateTime?
+  ativo      Boolean   @default(true)
+  targets    Target[]
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+}
+
 /// Cofre de credenciais. O campo `segredo` guarda SEMPRE o texto cifrado
 /// (AES-256-GCM, ver apps/worker/src/secrets.ts) — nunca o valor em texto puro.
 model Credencial {
@@ -100,6 +120,14 @@ model Target {
   statusGroupId     String?
   projeto           Projeto?     @relation(fields: [projetoId], references: [id], onDelete: SetNull)
   projetoId         String?
+  /// Servidor com agente que reporta este alvo (nulo para alvos checados de fora).
+  /// Chama-se `servidor` porque `host` já é o hostname usado pelas sondas TCP.
+  servidor          Host?        @relation(fields: [hostId], references: [id], onDelete: Cascade)
+  hostId            String?
+  /// Chave estável do item dentro do host (nome do container, ponto de montagem
+  /// do disco, "cpu", "mem"). Permite reencontrar o alvo a cada relato do agente
+  /// mesmo que alguém renomeie o alvo no admin.
+  chaveAgente       String?
   lastStatus        CheckStatus?
   lastCheckedAt     DateTime?
   checks            Check[]

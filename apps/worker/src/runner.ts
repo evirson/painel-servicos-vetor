@@ -1,22 +1,18 @@
 import { prisma } from '@vetor/db'
-import { runProbe } from '@vetor/probes'
+import { runProbe, type ProbeResult } from '@vetor/probes'
 
 /**
- * Executa a checagem de um alvo: roda a sonda, grava o histórico,
- * atualiza o estado atual e abre/fecha incidentes.
+ * Persiste o resultado de uma checagem: grava o histórico, atualiza o estado
+ * atual e abre/fecha incidentes.
+ *
+ * Separado de `checkTarget` porque nem todo resultado vem de uma sonda que nós
+ * executamos: os alvos de tipo push (host_metric, docker_container) são
+ * reportados pelo agente do servidor via /api/ingest/agent, e precisam da mesma
+ * lógica de incidente — que fica aqui, em um lugar só.
  */
-export async function checkTarget(targetId: string) {
+export async function recordResult(targetId: string, result: ProbeResult) {
   const target = await prisma.target.findUnique({ where: { id: targetId } })
   if (!target) return null
-
-  const result = await runProbe({
-    tipo: target.tipo,
-    host: target.host,
-    porta: target.porta,
-    url: target.url,
-    timeoutMs: target.timeoutMs,
-    config: target.config,
-  })
 
   await prisma.check.create({
     data: {
@@ -49,4 +45,21 @@ export async function checkTarget(targetId: string) {
   })
 
   return result
+}
+
+/** Executa a sonda de um alvo e registra o resultado. */
+export async function checkTarget(targetId: string) {
+  const target = await prisma.target.findUnique({ where: { id: targetId } })
+  if (!target) return null
+
+  const result = await runProbe({
+    tipo: target.tipo,
+    host: target.host,
+    porta: target.porta,
+    url: target.url,
+    timeoutMs: target.timeoutMs,
+    config: target.config,
+  })
+
+  return recordResult(target.id, result)
 }

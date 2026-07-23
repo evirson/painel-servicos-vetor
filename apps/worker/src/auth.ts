@@ -20,6 +20,9 @@ export async function registerAuth(app: FastifyInstance) {
     const url = (req.raw.url || '').split('?')[0]
     if (PUBLIC_PATHS.has(url)) return
     if (url.startsWith('/api/public/')) return
+    // Ingestão do agente tem autenticação própria (token do Host, verificado em
+    // ingest.ts) — não usa o JWT do admin.
+    if (url.startsWith('/api/ingest/')) return
     if (!url.startsWith('/api/')) return
     try {
       await req.jwtVerify()

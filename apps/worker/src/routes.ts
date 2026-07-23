@@ -3,6 +3,9 @@ import { prisma } from '@vetor/db'
 import { checkTarget } from './runner'
 import { cofreDisponivel, motivoIndisponivel, encrypt, decrypt, mascara } from './secrets'
 import { diaUTC } from './rollup'
+import { autenticarHost, processarRelato } from './ingest'
+import { randomBytes } from 'node:crypto'
+import bcrypt from 'bcryptjs'
 
 const DIAS_HISTORICO = 90
 
@@ -328,6 +331,60 @@ export async function registerRoutes(app: FastifyInstance) {
       app.log.warn(`[cofre] credencial "${c.nome}" (${c.id}) revelada por ${quem}`)
       return { id: c.id, nome: c.nome, segredo: valor }
     } catch (err: any) {
+      return reply.code(500).send({ error: String(err?.message ?? err) })
+    }
+  })
+
+  // ---------- Servidores com agente ----------
+  app.get('/api/hosts', async () => {
+    const hosts = await prisma.host.findMany({
+      orderBy: { nome: 'asc' },
+      include: { _count: { select: { targets: true } } },
+    })
+    // tokenHash nunca sai da API.
+    return hosts.map(({ tokenHash, ...h }) => h)
+  })
+
+  /**
+   * Cria o servidor e devolve o token do agente **uma única vez** — só o hash
+   * fica no banco. Se perder, gere outro: não há como recuperar o original.
+   */
+  app.post('/api/hosts', async (req, reply) => {
+    const b = (req.body ?? {}) as any
+    if (!b.nome) return reply.code(400).send({ error: 'informe o nome do servidor' })
+    const token = randomBytes(32).toString('base64url')
+    const host = await prisma.host.create({
+      data: { nome: b.nome, ip: b.ip || null, tokenHash: bcrypt.hashSync(token, 10) },
+    })
+    const { tokenHash, ...semHash } = host
+    return { ...semHash, token, aviso: 'guarde este token agora — ele não será mostrado de novo' }
+  })
+
+  /** Gera um token novo, invalidando o anterior. */
+  app.post('/api/hosts/:id/rotacionar-token', async (req, reply) => {
+    const { id } = req.params as any
+    const existe = await prisma.host.findUnique({ where: { id } })
+    if (!existe) return reply.code(404).send({ error: 'servidor não encontrado' })
+    const token = randomBytes(32).toString('base64url')
+    await prisma.host.update({ where: { id }, data: { tokenHash: bcrypt.hashSync(token, 10) } })
+    return { id, token, aviso: 'o token anterior deixou de valer' }
+  })
+
+  app.delete('/api/hosts/:id', async (req, reply) => {
+    const { id } = req.params as any
+    await prisma.host.delete({ where: { id } })
+    return reply.code(204).send()
+  })
+
+  // ---------- Ingestão do agente (token do Host, não JWT) ----------
+  app.post('/api/ingest/agent', async (req, reply) => {
+    const host = await autenticarHost(req.headers.authorization)
+    if (!host) return reply.code(401).send({ error: 'token de agente inválido' })
+    try {
+      const { itens } = await processarRelato(host.id, (req.body ?? {}) as any)
+      return { ok: true, host: host.nome, itens }
+    } catch (err: any) {
+      app.log.error({ err }, '[ingest] falha ao processar relato')
       return reply.code(500).send({ error: String(err?.message ?? err) })
     }
   })

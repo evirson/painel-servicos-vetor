@@ -177,7 +177,13 @@ e manter o detalhado por ~90 dias.
   carrega linhas no Node) e poda de `Check` além de `RETENCAO_DIAS` (90). Resultado: **31ms**,
   103MB de memória. O dia corrente é lido do bruto para não ficar defasado, e o resumo do dia é
   descartado antes de somar para não contar duas vezes.
-- **Pendente:** Fase B (agente no VPS) e D (alertas) — ver a seção 9.
+- **Agente no VPS (Fase B) ✅ feito.** `apps/agent/` — script Node sem dependências npm que roda
+  no servidor monitorado e empurra métricas por HTTPS (`POST /api/ingest/agent`, autenticado por
+  token do `Host` com hash bcrypt). Reporta disco, CPU, memória, containers (Engine API pelo
+  socket, sem CLI) e portas locais. Cada item vira um `Target` auto-provisionado com
+  `publico: false`. Inclui **watchdog**: alvo push sem relato há mais de 3× o intervalo vira
+  `down`, senão um agente morto deixaria tudo verde para sempre.
+- **Pendente:** Fase D (alertas) e rate limiting no login — ver a seção 9.
 
 **Segurança — Autenticação** ✅ feito
 - Login e-mail/senha (bcrypt) + JWT; rotas `/api` protegidas exceto `/api/public/*`,
@@ -200,10 +206,9 @@ e manter o detalhado por ~90 dias.
 Ordem acordada: **A → C → B → D**. A Fase A está feita.
 
 - ~~**C — Escala**~~ ✅ feita (ver Fase 7 acima).
-- **B — Agente no VPS.** Container que lê `docker ps` pela Engine API no socket, disco/CPU/RAM,
-  e envia via `POST /api/ingest/agent` com token. Inclui watchdog de agente mudo (sem ele, um
-  agente morto deixa tudo verde para sempre). Necessário porque 5432/3306/6379 estão fechados
-  para a internet — de fora, banco e container são invisíveis.
+- ~~**B — Agente no VPS**~~ ✅ feito (ver Fase 7 acima e `apps/agent/README.md`).
+  **Falta implantar de verdade no 77.37.41.177** — o código está testado contra 30 containers
+  reais, mas rodando localmente.
 - **D — Alertas** com flap damping + dead-man's-switch externo para o próprio painel.
 
 > ⚠️ **Rate limiting no login virou obrigatório**, não opcional: com o cofre de credenciais, o
