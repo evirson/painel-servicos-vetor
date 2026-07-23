@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import jwt from '@fastify/jwt'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@vetor/db'
-import { bloqueioRestante, registrarFalha, limparFalhas, chaves } from './rate-limit'
+import { bloqueioRestante, registrarFalha, limparFalhas, chaves, ipDoCliente } from './rate-limit'
 
 // Rotas liberadas sem token.
 const PUBLIC_PATHS = new Set(['/health', '/api/auth/login'])
@@ -36,8 +36,7 @@ export async function registerAuth(app: FastifyInstance) {
     const { email, password } = (req.body ?? {}) as any
     if (!email || !password) return reply.code(400).send({ error: 'informe e-mail e senha' })
 
-    // Atrás do nginx, req.ip é o IP do proxy: usa o X-Forwarded-For quando houver.
-    const ip = (String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()) || req.ip
+    const ip = ipDoCliente(req as any)
     const chavesDaTentativa = chaves(ip, email)
 
     const espera = Math.max(...chavesDaTentativa.map(bloqueioRestante))

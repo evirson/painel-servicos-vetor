@@ -69,6 +69,33 @@ export function chaves(ip: string, email: string): string[] {
   return [`ip:${ip}`, `email:${String(email).toLowerCase()}`]
 }
 
+/**
+ * IP real do cliente, atrás de proxy.
+ *
+ * NÃO usa o primeiro item de X-Forwarded-For: esse cabeçalho é escrito pelo
+ * cliente e só ganha itens confiáveis conforme passa por proxies. Um atacante
+ * que mande `X-Forwarded-For: 1.2.3.4` ganharia um contador novo a cada
+ * tentativa e o bloqueio não valeria nada.
+ *
+ * Ordem de confiança:
+ *   1. CF-Connecting-IP — a Cloudflare define e SOBRESCREVE o que o cliente mandar;
+ *   2. X-Real-IP — definido pelo nosso nginx a partir da conexão real;
+ *   3. o IP da conexão.
+ *
+ * Se um dia o painel ficar exposto sem nginx na frente, isto continua correto:
+ * sem os cabeçalhos, cai no IP da conexão.
+ */
+export function ipDoCliente(req: {
+  headers: Record<string, any>
+  ip: string
+}): string {
+  const cf = req.headers['cf-connecting-ip']
+  if (typeof cf === 'string' && cf.trim()) return cf.trim()
+  const real = req.headers['x-real-ip']
+  if (typeof real === 'string' && real.trim()) return real.trim()
+  return req.ip
+}
+
 /** Exposto para teste. */
 export function _limparTudo() {
   registros.clear()
