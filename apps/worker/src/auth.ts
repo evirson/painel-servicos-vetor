@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify'
 import jwt from '@fastify/jwt'
 import bcrypt from 'bcryptjs'
 import { prisma } from '@vetor/db'
+import { bloqueioRestante, registrarFalha, limparFalhas, chaves } from './rate-limit'
 
 // Rotas liberadas sem token.
 const PUBLIC_PATHS = new Set(['/health', '/api/auth/login'])
@@ -35,10 +36,26 @@ export async function registerAuth(app: FastifyInstance) {
     const { email, password } = (req.body ?? {}) as any
     if (!email || !password) return reply.code(400).send({ error: 'informe e-mail e senha' })
 
+    // Atrás do nginx, req.ip é o IP do proxy: usa o X-Forwarded-For quando houver.
+    const ip = (String(req.headers['x-forwarded-for'] ?? '').split(',')[0].trim()) || req.ip
+    const chavesDaTentativa = chaves(ip, email)
+
+    const espera = Math.max(...chavesDaTentativa.map(bloqueioRestante))
+    if (espera > 0) {
+      app.log.warn(`[login] bloqueado por excesso de tentativas: ${email} de ${ip}`)
+      return reply
+        .code(429)
+        .header('Retry-After', String(espera))
+        .send({ error: `muitas tentativas — tente de novo em ${Math.ceil(espera / 60)} min` })
+    }
+
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user || !bcrypt.compareSync(password, user.senhaHash)) {
+      chavesDaTentativa.forEach(registrarFalha)
+      app.log.warn(`[login] falha de autenticação: ${email} de ${ip}`)
       return reply.code(401).send({ error: 'credenciais inválidas' })
     }
+    chavesDaTentativa.forEach(limparFalhas)
     const token = app.jwt.sign(
       { sub: user.id, email: user.email, papel: user.papel },
       { expiresIn: '12h' },
