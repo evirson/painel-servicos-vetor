@@ -23,15 +23,20 @@ services:
       DATABASE_URL: postgresql://vetor:vetor@postgres:5432/painel
       PORT: 4400
       AUTH_SECRET: troque-este-segredo-em-producao
+      # Cofre de credenciais. Gere com `openssl rand -base64 32` e ponha no .env
+      # da raiz. Vazia = cofre desativado (rotas /api/credenciais devolvem 503).
+      SECRETS_KEY: ${SECRETS_KEY:-}
       # Admin inicial criado/atualizado no boot:
       ADMIN_EMAIL: admin@vetor.com.br
       ADMIN_PASSWORD: troque-esta-senha
       # Certificado A1 para a sonda SEFAZ (PR exige mTLS até no status serviço).
-      # Monte o .pfx pelo volume abaixo e descomente:
-      # NFE_CERT_PFX_PATH: /certs/vetor.pfx
-      # NFE_CERT_PASS: senha-do-pfx
-    # volumes:
-    #   - ./certs:/certs:ro
+      # Coloque o .pfx em ./certs e defina estas duas no .env da raiz — ver certs/README.md.
+      # Vazias = sonda roda sem certificado e reporta degraded (não abre incidente falso).
+      NFE_CERT_PFX_PATH: ${NFE_CERT_PFX_PATH:-}
+      NFE_CERT_PASS: ${NFE_CERT_PASS:-}
+    volumes:
+      # Somente-leitura: o certificado nunca entra na imagem, só é montado em runtime.
+      - ./certs:/certs:ro
     ports:
       - "4400:4400"
     depends_on:

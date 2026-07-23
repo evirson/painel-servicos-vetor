@@ -15,6 +15,14 @@ const LABEL: Record<string, string> = {
   unknown: 'Sem dados',
 }
 
+// Banner geral. "degraded" é âmbar de propósito: instabilidade não é queda,
+// e um banner vermelho permanente faria o cliente ignorar a página.
+const BANNER: Record<string, { cor: string; texto: string }> = {
+  operational: { cor: 'bg-emerald-600', texto: 'Todos os sistemas operacionais' },
+  degraded: { cor: 'bg-amber-600', texto: 'Alguns sistemas com instabilidade' },
+  incident: { cor: 'bg-rose-600', texto: 'Há incidentes em andamento' },
+}
+
 function barColor(uptime: number | null) {
   if (uptime == null) return 'bg-slate-200'
   if (uptime >= 99) return 'bg-emerald-500'
@@ -48,9 +56,9 @@ export default function Home() {
         <p className="text-sm text-slate-500 mt-1">Disponibilidade dos nossos sistemas em tempo real.</p>
       </header>
 
-      <div className={`rounded-xl p-5 mb-8 text-white ${data.overall === 'operational' ? 'bg-emerald-600' : 'bg-rose-600'}`}>
+      <div className={`rounded-xl p-5 mb-8 text-white ${BANNER[data.overall]?.cor ?? BANNER.incident.cor}`}>
         <p className="text-lg font-semibold">
-          {data.overall === 'operational' ? 'Todos os sistemas operacionais' : 'Há incidentes em andamento'}
+          {BANNER[data.overall]?.texto ?? BANNER.incident.texto}
         </p>
       </div>
 

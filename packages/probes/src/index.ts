@@ -2,9 +2,11 @@ import type { ProbeResult, ProbeTarget } from './types'
 import { tcpProbe } from './tcp'
 import { httpProbe } from './http'
 import { sefazProbe } from './sefaz'
+import { pingProbe } from './ping'
+import { tlsCertProbe } from './tls-cert'
 
 export * from './types'
-export { tcpProbe, httpProbe, sefazProbe }
+export { tcpProbe, httpProbe, sefazProbe, pingProbe, tlsCertProbe }
 
 /**
  * Despacha para a sonda correta conforme o tipo do alvo.
@@ -23,6 +25,10 @@ export async function runProbe(t: ProbeTarget): Promise<ProbeResult> {
       return httpProbe(t)
     case 'sefaz':
       return sefazProbe(t)
+    case 'ping':
+      return pingProbe(t)
+    case 'tls_cert':
+      return tlsCertProbe(t)
     default:
       return { status: 'down', mensagem: `tipo desconhecido: ${t.tipo}` }
   }

@@ -158,6 +158,27 @@ e manter o detalhado por ~90 dias.
 **Fase 6 — Refino** ⬜ pendente
 - Alertas (e-mail/Telegram/webhook), retenção/agregação de métricas, heartbeat Asta→Firebird.
 
+**Fase 7 — Monitoramento do VPS** ✅ parcial (A feita; C, B e D pendentes)
+- Sondas novas: `ping` (host vivo) e `tls_cert` (validade do certificado do nginx).
+  `ping` separado do TCP de propósito: ping up + 443 down = nginx quebrado; ambos down = host caiu.
+- **Cadastro de Projetos** (`/admin/projetos`): nome + endereço do front/API; o botão
+  "Gerar alvos" deriva automaticamente o `http_api` (público) e o `tls_cert` (interno).
+  Idempotente.
+- **Cofre de credenciais** (`/admin/credenciais`): AES-256-GCM com chave em `SECRETS_KEY`.
+  Falha fechado sem a chave; listagem sempre mascarada; texto puro só em
+  `POST /api/credenciais/:id/revelar`, que registra quem revelou no log.
+- Página pública: grupos sem serviço público são omitidos, e o banner ganhou o estado
+  âmbar "instabilidade" (antes, um alvo degradado deixava tudo vermelho para sempre).
+- **Escala (Fase C) ✅ feita.** Medido com 30 alvos × 90 dias (3,9M linhas em `Check`): o
+  `/api/public/status` levava **46s e derrubava o worker por OOM** (exit 137) — e como o
+  agendador roda no mesmo processo, o monitoramento inteiro parava. Um cliente abrindo a página
+  de status era suficiente. Agora: tabela `CheckDaily` (resumo por alvo/dia, 3,9M → 2.735
+  linhas), job horário em `apps/worker/src/rollup.ts` (agrega via `groupBy` no banco, nunca
+  carrega linhas no Node) e poda de `Check` além de `RETENCAO_DIAS` (90). Resultado: **31ms**,
+  103MB de memória. O dia corrente é lido do bruto para não ficar defasado, e o resumo do dia é
+  descartado antes de somar para não contar duas vezes.
+- **Pendente:** Fase B (agente no VPS) e D (alertas) — ver a seção 9.
+
 **Segurança — Autenticação** ✅ feito
 - Login e-mail/senha (bcrypt) + JWT; rotas `/api` protegidas exceto `/api/public/*`,
   `/api/auth/login` e `/health`. Admin inicial via `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
@@ -174,7 +195,26 @@ e manter o detalhado por ~90 dias.
 - Banco vem vazio numa subida limpa (compose roda só `db push`); popular exemplos com
   `docker compose exec worker npm run db:seed`.
 
-## 9. Pontos em aberto para confirmar depois
+## 9. Próximos passos do monitoramento do VPS (77.37.41.177)
+
+Ordem acordada: **A → C → B → D**. A Fase A está feita.
+
+- ~~**C — Escala**~~ ✅ feita (ver Fase 7 acima).
+- **B — Agente no VPS.** Container que lê `docker ps` pela Engine API no socket, disco/CPU/RAM,
+  e envia via `POST /api/ingest/agent` com token. Inclui watchdog de agente mudo (sem ele, um
+  agente morto deixa tudo verde para sempre). Necessário porque 5432/3306/6379 estão fechados
+  para a internet — de fora, banco e container são invisíveis.
+- **D — Alertas** com flap damping + dead-man's-switch externo para o próprio painel.
+
+> ⚠️ **Rate limiting no login virou obrigatório**, não opcional: com o cofre de credenciais, o
+> painel passa a guardar senha de produção. Fazer antes de expor o admin fora da rede.
+
+> ⚠️ **`ping` não funciona sob Docker Desktop (macOS/Windows)**: a pilha de rede em espaço de
+> usuário responde ao ICMP em vez de encaminhá-lo, e qualquer IP "responde". A sonda detecta
+> isso pingando 192.0.2.1 (TEST-NET, RFC 5737) e reporta `degraded` com o motivo, em vez de um
+> falso `up`. Em host Linux (produção) funciona normalmente.
+
+## 10. Pontos em aberto para confirmar depois
 - Portas reais do Asta e do Firebird no ambiente da Vetor.
 - ~~Quais UFs entram no monitoramento SEFAZ~~ → **PR** (2026-07-13); outras UFs conforme a base
   de clientes crescer.

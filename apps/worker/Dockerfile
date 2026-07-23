@@ -2,8 +2,8 @@
 FROM node:20-slim
 WORKDIR /app
 
-# openssl é necessário para o Prisma
-RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+# openssl para o Prisma; iputils-ping para a sonda `ping`
+RUN apt-get update && apt-get install -y openssl iputils-ping && rm -rf /var/lib/apt/lists/*
 
 COPY . .
 RUN npm install

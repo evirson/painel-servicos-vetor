@@ -7,5 +7,10 @@ build
 .git
 .env
 .env.local
+# certificados entram por volume em runtime, nunca na imagem
+certs
+**/certs
+*.pfx
+*.p12
 *.log
 *.tsbuildinfo

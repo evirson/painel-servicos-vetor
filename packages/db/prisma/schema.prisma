@@ -13,6 +13,16 @@ enum ProbeType {
   firebird
   asta
   sefaz
+  ping
+  tls_cert
+}
+
+enum CredencialTipo {
+  senha
+  token
+  chave_ssh
+  certificado
+  outro
 }
 
 enum CheckStatus {
@@ -30,11 +40,48 @@ model User {
 }
 
 model StatusGroup {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   nome      String
-  ordem     Int      @default(0)
+  ordem     Int       @default(0)
   targets   Target[]
-  createdAt DateTime @default(now())
+  projetos  Projeto[]
+  createdAt DateTime  @default(now())
+}
+
+/// Um sistema real hospedado na infra (ex.: "Portal do Representante").
+/// StatusGroup é o agrupamento de APRESENTAÇÃO da página pública; Projeto é o sistema
+/// em si. Os alvos monitorados podem ser derivados das URLs cadastradas aqui.
+model Projeto {
+  id            String       @id @default(cuid())
+  nome          String
+  descricao     String?
+  urlFront      String?
+  urlApi        String?
+  host          String?
+  statusGroup   StatusGroup? @relation(fields: [statusGroupId], references: [id], onDelete: SetNull)
+  statusGroupId String?
+  ativo         Boolean      @default(true)
+  ordem         Int          @default(0)
+  targets       Target[]
+  credenciais   Credencial[]
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+/// Cofre de credenciais. O campo `segredo` guarda SEMPRE o texto cifrado
+/// (AES-256-GCM, ver apps/worker/src/secrets.ts) — nunca o valor em texto puro.
+model Credencial {
+  id        String         @id @default(cuid())
+  projeto   Projeto?       @relation(fields: [projetoId], references: [id], onDelete: Cascade)
+  projetoId String?
+  nome      String
+  tipo      CredencialTipo @default(senha)
+  usuario   String?
+  host      String?
+  segredo   String
+  notas     String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
 }
 
 model Target {
@@ -51,9 +98,12 @@ model Target {
   publico           Boolean      @default(true)
   statusGroup       StatusGroup? @relation(fields: [statusGroupId], references: [id], onDelete: SetNull)
   statusGroupId     String?
+  projeto           Projeto?     @relation(fields: [projetoId], references: [id], onDelete: SetNull)
+  projetoId         String?
   lastStatus        CheckStatus?
   lastCheckedAt     DateTime?
   checks            Check[]
+  checkDaily        CheckDaily[]
   incidents         Incident[]
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
@@ -69,6 +119,24 @@ model Check {
   mensagem   String?
 
   @@index([targetId, timestamp])
+}
+
+/// Consolidação diária de `Check`, por alvo. Existe para que a página pública
+/// não precise varrer o histórico bruto: 90 dias de um alvo são 90 linhas aqui,
+/// contra ~130 mil em `Check`. Preenchida pelo job em apps/worker/src/rollup.ts.
+model CheckDaily {
+  id              String   @id @default(cuid())
+  target          Target   @relation(fields: [targetId], references: [id], onDelete: Cascade)
+  targetId        String
+  dia             DateTime @db.Date
+  up              Int      @default(0)
+  degraded        Int      @default(0)
+  down            Int      @default(0)
+  total           Int      @default(0)
+  latenciaMediaMs Int?
+
+  @@unique([targetId, dia])
+  @@index([dia])
 }
 
 model Incident {

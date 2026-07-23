@@ -1,5 +1,6 @@
 import { prisma } from '@vetor/db'
 import { checkTarget } from './runner'
+import { rodarManutencao } from './rollup'
 
 /**
  * Agendador em processo. Mantém um timer por alvo ativo e ressincroniza
@@ -40,7 +41,20 @@ async function sync() {
   }
 }
 
+// Consolidação do histórico + poda. De hora em hora basta: a página pública lê o
+// dia corrente direto do bruto, então o atraso do resumo não aparece para o usuário.
+const INTERVALO_MANUTENCAO_MS = 3600_000
+
 export function startScheduler() {
+  const log = {
+    info: (msg: string) => console.log(msg),
+    error: (o: any, m: string) => console.error(m, o),
+  }
+
   sync().catch((err) => console.error('[scheduler] sync inicial falhou:', err))
   setInterval(() => sync().catch((err) => console.error('[scheduler] sync falhou:', err)), 30_000)
+
+  // No boot, recupera os dias que ficaram para trás enquanto o worker esteve fora.
+  rodarManutencao(log)
+  setInterval(() => rodarManutencao(log), INTERVALO_MANUTENCAO_MS)
 }

@@ -3,9 +3,12 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { api, ApiError } from '../../lib/api'
 import { getToken, clearToken } from '../../lib/auth'
+import { AdminNav } from './nav'
 
 const TIPOS = [
   { v: 'http_api', l: 'API HTTP' },
+  { v: 'ping', l: 'Ping (host responde?)' },
+  { v: 'tls_cert', l: 'Certificado TLS (validade)' },
   { v: 'db_port', l: 'Porta de banco (TCP)' },
   { v: 'firebird', l: 'Firebird (TCP 3050)' },
   { v: 'asta', l: 'Asta / Delphi (TCP)' },
@@ -40,11 +43,6 @@ export default function Admin() {
   const load = async () => {
     setTargets(await api('/api/targets'))
     setGroups(await api('/api/groups'))
-  }
-
-  const logout = () => {
-    clearToken()
-    router.replace('/login')
   }
 
   useEffect(() => {
@@ -100,17 +98,13 @@ export default function Admin() {
   }
 
   const isTcp = ['db_port', 'firebird', 'asta'].includes(form.tipo)
-  const isHttp = ['http_api', 'sefaz'].includes(form.tipo)
+  const isHttp = ['http_api', 'sefaz', 'tls_cert'].includes(form.tipo)
+  // ping é por host, sem porta; tls_cert aceita URL (preferido) ou host+porta.
+  const isPing = form.tipo === 'ping'
 
   return (
     <main className="max-w-4xl mx-auto p-6 sm:p-10">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Painel administrativo</h1>
-        <div className="flex items-center gap-4">
-          <a href="/" className="text-sm underline">Ver página pública</a>
-          <button onClick={logout} className="text-sm border rounded px-3 py-1">Sair</button>
-        </div>
-      </div>
+      <AdminNav atual="/admin" />
 
       <form onSubmit={create} className="bg-white border border-slate-200 rounded-xl p-5 mb-8 grid gap-3 sm:grid-cols-2">
         <h2 className="sm:col-span-2 font-semibold">Adicionar serviço</h2>
@@ -139,6 +133,13 @@ export default function Admin() {
                 placeholder={form.tipo === 'firebird' ? '3050' : ''} />
             </label>
           </>
+        )}
+
+        {isPing && (
+          <label className="text-sm sm:col-span-2">Host / IP
+            <input className="mt-1 w-full border rounded px-2 py-1" value={form.host || ''}
+              onChange={(e) => setForm({ ...form, host: e.target.value })} placeholder="77.37.41.177" />
+          </label>
         )}
 
         {isHttp && (

@@ -5,9 +5,14 @@ build/
 *.tsbuildinfo
 .env
 .env.local
-# certificados digitais nunca entram no repo
-certs/
+# certificados digitais nunca entram no repo — a pasta é versionada, o conteúdo não
+certs/*
+!certs/.gitkeep
+!certs/README.md
 *.pfx
 *.p12
+*.cer
+*.crt
+*.key
 *.log
 .DS_Store
